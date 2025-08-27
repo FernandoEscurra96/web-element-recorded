@@ -4,11 +4,16 @@
     <title>Selenium Recorder</title>
     <style>
       body { font-family: sans-serif; padding: 10px; }
-      button { padding: 5px 10px; margin-top: 10px; }
+      button { padding: 6px 12px; margin: 5px; border-radius: 5px; }
+      .recording { background: #e74c3c; color: white; }
+      .stopped { background: #2ecc71; color: white; }
     </style>
   </head>
   <body>
     <h3>Selenium Recorder</h3>
-    <p>Los pasos se están grabando automáticamente.</p>
+    <button id="startBtn" class="stopped">Iniciar grabación</button>
+    <button id="stopBtn" class="recording" disabled>Detener grabación</button>
+
+    <script src="popup.js"></script>
   </body>
 </html>

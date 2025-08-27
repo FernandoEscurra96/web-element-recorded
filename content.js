@@ -12,8 +12,6 @@ function captureClick(e) {
     url: window.location.href,
     timestamp: Date.now()
   };
-
-  // Enviar al background
   chrome.runtime.sendMessage({ type: "record_step", step });
 }
 
@@ -25,10 +23,8 @@ function captureInput(e) {
     url: window.location.href,
     timestamp: Date.now()
   };
-
   chrome.runtime.sendMessage({ type: "record_step", step });
 }
 
-// Listeners
 document.addEventListener("click", captureClick, true);
 document.addEventListener("change", captureInput, true);

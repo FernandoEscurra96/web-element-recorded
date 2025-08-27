@@ -1,3 +1,12 @@
+function getElementInfo(el) {
+  return {
+    selector: getUniqueSelector(el),
+    id: el.id || null,
+    name: el.name || null,
+    class: el.className || null
+  };
+}
+
 function getUniqueSelector(el) {
   if (el.id) return `#${el.id}`;
   if (el.name) return `[name="${el.name}"]`;
@@ -6,24 +15,28 @@ function getUniqueSelector(el) {
 }
 
 function captureClick(e) {
+  const elInfo = getElementInfo(e.target);
+
   const step = {
     action: "click",
-    selector: getUniqueSelector(e.target),
+    ...elInfo,
     url: window.location.href,
     timestamp: Date.now()
   };
+
   chrome.runtime.sendMessage({ type: "record_step", step });
 }
 
 function captureInput(e) {
-  // Solo capturamos <input> y <textarea>
   if (e.target.tagName.toLowerCase() !== "input" && e.target.tagName.toLowerCase() !== "textarea") return;
+
+  const elInfo = getElementInfo(e.target);
 
   const step = {
     action: "type",
-    selector: getUniqueSelector(e.target),
+    ...elInfo,
     value: e.target.value,
-    inputType: e.target.type || "text", // para saber si era tel, email, etc.
+    inputType: e.target.type || "text",
     url: window.location.href,
     timestamp: Date.now()
   };
@@ -33,7 +46,5 @@ function captureInput(e) {
 
 // Listeners globales
 document.addEventListener("click", captureClick, true);
-
-// Capturamos cambios en inputs (incluye type="tel")
 document.addEventListener("input", captureInput, true);
 document.addEventListener("change", captureInput, true);

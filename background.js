@@ -16,8 +16,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("send record step");
     console.log( message.step)
   }
-  console.log("send record step");
-  console.log( message.step)
+  //console.log("send record step");
+  //console.log( message.step)
   
   if (message.type === "record_step" && isRecording && false) {
     console.log("Step captured:", message.step);

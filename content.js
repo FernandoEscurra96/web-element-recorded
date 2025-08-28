@@ -1,98 +1,157 @@
-const clickedElements = new WeakSet();
-
-function getUniqueSelector(el) {
-  if (el.id) return `#${el.id}`;
-  if (el.name) return `[name="${el.name}"]`;
-  if (el.className) return `${el.tagName.toLowerCase()}.${el.className.split(" ").join(".")}`;
-  return el.tagName.toLowerCase();
-}
-
+// ==========================
+// Utils
+// ==========================
 function getElementInfo(el) {
+  let selector = "";
+  if (el.id) {
+    selector = `#${el.id}`;
+  } else if (el.name) {
+    selector = `[name="${el.name}"]`;
+  } else if (el.className) {
+    selector =
+      el.tagName.toLowerCase() +
+      "." +
+      el.className.trim().replace(/\s+/g, ".");
+  } else {
+    selector = el.tagName.toLowerCase();
+  }
+
+  // Calcular índice si hay múltiples iguales
+  const allSimilar = Array.from(document.querySelectorAll(selector));
+  let index = -1;
+  if (allSimilar.length > 1) {
+    index = allSimilar.indexOf(el);
+  }
+
   return {
-    selector: getUniqueSelector(el),
+    selector,
     id: el.id || null,
     name: el.name || null,
-    class: el.className || null
+    class: el.className || null,
+    index: index >= 0 ? index : null,
   };
 }
 
-// ---- CLICK ----
-function captureClick(e) {
-  if (clickedElements.has(e.target)) return;
-  clickedElements.add(e.target);
+function findNearestLabelText(el) {
+  // label[for=id]
+  if (el.id) {
+    const lbl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+    if (lbl) return lbl.innerText.trim();
+  }
 
-  const elInfo = getElementInfo(e.target);
+  // envoltorio <label> ... <el> ...
+  const wrapLabel = el.closest("label");
+  if (wrapLabel) return wrapLabel.innerText.trim();
+
+  // label dentro del contenedor padre
+  const container = el.closest(".form-group, .row, .field, div");
+  if (container) {
+    const lbl = container.querySelector("label");
+    if (lbl) return lbl.innerText.trim();
+  }
+
+  return "unknown-label";
+}
+
+function sendStep(step) {
+  chrome.runtime.sendMessage({ type: "record_step", step });
+}
+
+// ==========================
+// Clicks
+// ==========================
+document.addEventListener("click", (e) => {
+  const target = e.target.closest("button, a, input[type=button], input[type=submit]");
+  if (!target) return;
+
   const step = {
     action: "click",
-    ...elInfo,
+    ...getElementInfo(target),
+    text: target.innerText || target.value || null,
     url: window.location.href,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
+  sendStep(step);
+});
 
-  chrome.runtime.sendMessage({ type: "record_step", step });
+// ==========================
+// Inputs (text, tel, email, etc.)
+// ==========================
+function attachInputListener(inputEl) {
+  if (inputEl._hasRecorderListener) return;
+  inputEl._hasRecorderListener = true;
 
-  setTimeout(() => clickedElements.delete(e.target), 0);
-}
-
-// ---- INPUT y TEXTAREA ----
-function captureInput(e) {
-  const tag = e.target.tagName.toLowerCase();
-  if (tag !== "input" && tag !== "textarea") return;
-
-  const elInfo = getElementInfo(e.target);
-  const step = {
-    action: "type",
-    ...elInfo,
-    value: e.target.value,
-    inputType: e.target.type || "text",
-    url: window.location.href,
-    timestamp: Date.now()
-  };
-
-  chrome.runtime.sendMessage({ type: "record_step", step });
-}
-
-// ---- INPUT final (Enter / Tab) ----
-function captureInputFinal(e) {
-  const tag = e.target.tagName.toLowerCase();
-  if (tag !== "input" && tag !== "textarea") return;
-
-  if (e.key === "Enter" || e.key === "Tab") {
-    const elInfo = getElementInfo(e.target);
+  const handler = () => {
     const step = {
-      action: "type",
-      ...elInfo,
-      value: e.target.value,
-      inputType: e.target.type || "text",
+      action: "input",
+      ...getElementInfo(inputEl),
+      value: inputEl.value,
       url: window.location.href,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    chrome.runtime.sendMessage({ type: "record_step", step });
-  }
-}
-
-// ---- SELECT nativo ----
-function captureSelect(e) {
-  if (e.target.tagName.toLowerCase() !== "select") return;
-
-  const elInfo = getElementInfo(e.target);
-  const selectedOption = e.target.options[e.target.selectedIndex];
-
-  const step = {
-    action: "select",
-    ...elInfo,
-    value: selectedOption.value,
-    text: selectedOption.text,
-    url: window.location.href,
-    timestamp: Date.now()
+    sendStep(step);
   };
 
-  chrome.runtime.sendMessage({ type: "record_step", step });
+  inputEl.addEventListener("blur", handler);
+  inputEl.addEventListener("change", handler);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === "Tab") {
+      handler();
+    }
+  });
 }
 
-// ---- Listeners ----
-document.addEventListener("click", captureClick, false);
-document.addEventListener("input", captureInput, true);
-document.addEventListener("change", captureInput, true);
-document.addEventListener("keydown", captureInputFinal, true);
-document.addEventListener("change", captureSelect, true);
+document.querySelectorAll("input[type=text], input[type=tel], input[type=email], input[type=number], input[type=password]")
+  .forEach(attachInputListener);
+
+// ==========================
+// Selects
+// ==========================
+function attachSelectListener(selectEl) {
+  if (selectEl._hasRecorderListener) return;
+  selectEl._hasRecorderListener = true;
+
+  selectEl.addEventListener("change", () => {
+    const opt = selectEl.options[selectEl.selectedIndex];
+    const step = {
+      action: "select",
+      ...getElementInfo(selectEl),
+      value: selectEl.value,
+      text: opt ? opt.textContent.trim() : null,
+      context: findNearestLabelText(selectEl),
+      url: window.location.href,
+      timestamp: Date.now(),
+    };
+    sendStep(step);
+  });
+}
+
+document.querySelectorAll("select").forEach(attachSelectListener);
+
+// ==========================
+// Observer para inputs y selects dinámicos
+// ==========================
+const observer = new MutationObserver((mutations) => {
+  mutations.forEach((m) => {
+    m.addedNodes.forEach((node) => {
+      if (node.nodeType === 1) {
+        if (node.tagName) {
+          const tag = node.tagName.toLowerCase();
+          if (tag === "input") {
+            attachInputListener(node);
+          } else if (tag === "select") {
+            attachSelectListener(node);
+          }
+        }
+        // Si el nodo tiene hijos
+        node.querySelectorAll &&
+          node.querySelectorAll("input, select").forEach((el) => {
+            if (el.tagName.toLowerCase() === "input") attachInputListener(el);
+            if (el.tagName.toLowerCase() === "select") attachSelectListener(el);
+          });
+      }
+    });
+  });
+});
+
+observer.observe(document.body, { childList: true, subtree: true });

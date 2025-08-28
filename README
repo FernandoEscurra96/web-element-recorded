@@ -1,0 +1,128 @@
+UI Flow Recorder – Chrome Extension + Selenium Generator
+
+Esta extensión permite grabar interacciones de usuario en una web (clicks, inputs, selects, etc.) y exportarlas como pasos que luego se pueden transformar en tests automatizados con Selenium.
+
+📌 Características
+
+🔘 Botón de grabación en la extensión (popup) para iniciar y detener la captura de pasos.
+
+🖱️ Captura de clicks en botones, enlaces, inputs tipo submit o button.
+
+⌨️ Captura de inputs (text, tel, email, password, etc.):
+
+Registra cambios en blur, change.
+
+Registra valores al presionar Enter o Tab.
+
+🔽 Captura de selects:
+
+Registra el value y el text de la opción elegida.
+
+Añade el label más cercano como context.
+
+Si hay varios selects idénticos, se asigna un campo index para distinguirlos.
+
+🔄 Detección dinámica con MutationObserver: inputs o selects añadidos después del load también se capturan.
+
+🛡️ Manejo de errores: si el contexto de la extensión se invalida (al recargarla en desarrollo), no rompe los listeners.
+
+📂 Estructura del proyecto
+ui-flow-recorder/
+│
+├── manifest.json         # Configuración de la extensión
+├── background.js         # (Opcional) worker para manejar mensajes
+├── popup.html            # UI con botón iniciar/detener grabación
+├── popup.js              # Lógica del popup
+├── content.js            # Captura de eventos en la página
+└── README.md             # Este archivo
+
+⚙️ Instalación en Chrome
+
+Clona este repo o descarga el ZIP.
+
+Ve a chrome://extensions/.
+
+Activa Modo desarrollador (arriba a la derecha).
+
+Haz clic en Cargar descomprimida y selecciona la carpeta del proyecto.
+
+Verás la extensión instalada.
+
+▶️ Uso
+
+Haz clic en el icono de la extensión en la barra de Chrome.
+
+Pulsa el botón Iniciar grabación.
+
+Navega por la página y realiza tu flujo:
+
+Clicks en botones, links.
+
+Inputs (blur, Enter, Tab).
+
+Selects (se captura label más cercano y value).
+
+Cuando termines, pulsa Detener grabación.
+
+Los pasos capturados se guardan como JSON en background.js (o se envían a tu servidor si configuras endpoint).
+
+📜 Ejemplo de step capturado
+{
+  "action": "select",
+  "selector": "[name=\"relationshipc13\"]",
+  "id": "relationshipc13",
+  "name": "relationshipc13",
+  "class": null,
+  "index": null,
+  "value": "1",
+  "text": "Padre/Madre",
+  "context": "Parentesco",
+  "url": "https://test-applicant.azurewebsites.net/#loan/personal/reference/1642",
+  "timestamp": 1756340839198
+}
+
+🤖 Generación de código Selenium
+
+Con los pasos capturados, puedes generar tests Selenium.
+Ejemplo en Python:
+
+from selenium.webdriver.common.by import By
+
+# Ejemplo de step SELECT
+step = {
+  "action": "select",
+  "selector": "[name=\"relationshipc13\"]",
+  "value": "1",
+  "text": "Padre/Madre",
+  "context": "Parentesco",
+  "index": 0
+}
+
+# Usando contexto + texto
+select_el = driver.find_element(
+    By.XPATH,
+    f"//label[contains(text(),'{step['context']}')]/following::select[{step['index']+1}]"
+)
+select_el.click()
+select_el.find_element(By.XPATH, f".//option[text()='{step['text']}']").click()
+
+⚠️ Errores comunes
+
+Extension context invalidated
+→ Aparece cuando recargas la extensión y no refrescas la página.
+✅ Solución: refresca la página después de recargar la extensión en chrome://extensions.
+✅ Mitigado: sendStep() ya incluye try/catch para no romper los listeners.
+
+🚀 Futuras mejoras
+
+Exportar los pasos capturados directamente a código Selenium JS o Python.
+
+Añadir soporte para checkbox, radio y textarea.
+
+Integrar con un servidor para guardar y versionar flujos.
+
+UI en el popup para listar los pasos grabados.
+
+📄 Licencia
+
+MIT – libre para usar y modificar.

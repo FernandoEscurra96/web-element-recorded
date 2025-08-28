@@ -16,7 +16,7 @@ function getElementInfo(el) {
   };
 }
 
-// Captura clicks
+// ---- CLICK ----
 function captureClick(e) {
   if (clickedElements.has(e.target)) return;
   clickedElements.add(e.target);
@@ -34,7 +34,7 @@ function captureClick(e) {
   setTimeout(() => clickedElements.delete(e.target), 0);
 }
 
-// Captura inputs en tiempo real
+// ---- INPUT y TEXTAREA ----
 function captureInput(e) {
   const tag = e.target.tagName.toLowerCase();
   if (tag !== "input" && tag !== "textarea") return;
@@ -52,12 +52,11 @@ function captureInput(e) {
   chrome.runtime.sendMessage({ type: "record_step", step });
 }
 
-// Captura cuando el usuario presiona Enter o Tab en inputs
+// ---- INPUT final (Enter / Tab) ----
 function captureInputFinal(e) {
   const tag = e.target.tagName.toLowerCase();
   if (tag !== "input" && tag !== "textarea") return;
 
-  // Solo detecta Enter (13) y Tab (9)
   if (e.key === "Enter" || e.key === "Tab") {
     const elInfo = getElementInfo(e.target);
     const step = {
@@ -72,8 +71,28 @@ function captureInputFinal(e) {
   }
 }
 
-// Listeners
+// ---- SELECT nativo ----
+function captureSelect(e) {
+  if (e.target.tagName.toLowerCase() !== "select") return;
+
+  const elInfo = getElementInfo(e.target);
+  const selectedOption = e.target.options[e.target.selectedIndex];
+
+  const step = {
+    action: "select",
+    ...elInfo,
+    value: selectedOption.value,
+    text: selectedOption.text,
+    url: window.location.href,
+    timestamp: Date.now()
+  };
+
+  chrome.runtime.sendMessage({ type: "record_step", step });
+}
+
+// ---- Listeners ----
 document.addEventListener("click", captureClick, false);
 document.addEventListener("input", captureInput, true);
 document.addEventListener("change", captureInput, true);
-document.addEventListener("keydown", captureInputFinal, true); // detecta Enter y Tab
+document.addEventListener("keydown", captureInputFinal, true);
+document.addEventListener("change", captureSelect, true);

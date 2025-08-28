@@ -77,7 +77,7 @@ Los pasos capturados se guardan como JSON en background.js (o se envían a tu se
   "value": "1",
   "text": "Padre/Madre",
   "context": "Parentesco",
-  "url": "https://test-applicant.azurewebsites.net/#loan/personal/reference/1642",
+  "url": "https://test-",
   "timestamp": 1756340839198
 }
 
